@@ -31,6 +31,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.regula.documentreader.api.DocumentReader;
+import com.regula.documentreader.api.completions.IDocumentReaderCompletion;
+import com.regula.documentreader.api.completions.IDocumentReaderInitCompletion;
+import com.regula.documentreader.api.completions.IDocumentReaderPrepareCompletion;
 import com.regula.documentreader.api.enums.DocReaderAction;
 import com.regula.documentreader.api.enums.eCheckResult;
 import com.regula.documentreader.api.enums.eGraphicFieldType;
@@ -118,9 +121,11 @@ public class MainActivity extends AppCompatActivity {
                 //noinspection ResultOfMethodCallIgnored
                 licInput.read(license);
 
+                DocumentReader.Instance().processParams().setLogs(true);
+
                 //preparing database files, it will be downloaded from network only one time and stored on user device
-                DocumentReader.Instance().prepareDatabase(MainActivity.this, "FullAuth", new
-                        DocumentReader.DocumentReaderPrepareCompletion() {
+                DocumentReader.Instance().prepareDatabase(MainActivity.this, "Full", new
+                        IDocumentReaderPrepareCompletion() {
                             @Override
                             public void onPrepareProgressChanged(int progress) {
                                 initDialog.setTitle("Downloading database: " + progress + "%");
@@ -130,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
                             public void onPrepareCompleted(boolean status, String error) {
 
                                 //Initializing the reader
-                                DocumentReader.Instance().initializeReader(MainActivity.this, license, new DocumentReader.DocumentReaderInitCompletion() {
+                                DocumentReader.Instance().initializeReader(MainActivity.this, license, new IDocumentReaderInitCompletion() {
                                     @Override
                                     public void onInitCompleted(boolean success, String error) {
                                         if (initDialog.isShowing()) {
@@ -147,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
                                                     clearResults();
 
                                                     //starting video processing
-                                                    DocumentReader.Instance().showScanner(completion);
+                                                    DocumentReader.Instance().showScanner(MainActivity.this, completion);
                                                 }
                                             });
 
@@ -170,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
                                                 }
                                             });
 
-                                            DocumentReader.Instance().functionality().setBtDeviceName("Regula 0000"); // set up name of the 1120 device
+                                            DocumentReader.Instance().functionality().setBtDeviceName("Regula 0122"); // set up name of the 1120 device
 
                                             if (DocumentReader.Instance().getCanUseAuthenticator()) {
                                                 useAuthenticator = sharedPreferences.getBoolean(USE_AUTHENTICATOR, false);
@@ -305,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //DocumentReader processing callback
-    private DocumentReader.DocumentReaderCompletion completion = new DocumentReader.DocumentReaderCompletion() {
+    private IDocumentReaderCompletion completion = new IDocumentReaderCompletion() {
         @Override
         public void onCompleted(int action, DocumentReaderResults results, String error) {
             //processing is finished, all results are ready
@@ -329,7 +334,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     //starting chip reading
-                    DocumentReader.Instance().startRFIDReader(new DocumentReader.DocumentReaderCompletion() {
+                    DocumentReader.Instance().startRFIDReader(new IDocumentReaderCompletion() {
                         @Override
                         public void onCompleted(int rfidAction, DocumentReaderResults results, String error) {
                             if (rfidAction == DocReaderAction.COMPLETE || rfidAction == DocReaderAction.CANCEL) {
@@ -393,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
                 authenticityResultImg.setImageResource(results.authenticityResult.getStatus() == eCheckResult.CH_CHECK_OK ? R.drawable.correct : R.drawable.incorrect);
 
                 for (DocumentReaderAuthenticityCheck check : results.authenticityResult.checks) {
-                    Log.d("MainActivity", "check type: " + check.getTypeName() + ", status: " + (check.status == eCheckResult.CH_CHECK_OK ? "Ok" : "Error"));
+                    Log.d("MainActivity", "check type: " + check.getTypeName(MainActivity.this) + ", status: " + (check.status == eCheckResult.CH_CHECK_OK ? "Ok" : "Error"));
                     for (DocumentReaderAuthenticityElement element : check.elements) {
                         if (element instanceof DocumentReaderIdentResult)  {
                             Log.d("MainActivity", "Element status: " + (element.status == eCheckResult.CH_CHECK_OK ? "Ok" : "Error") + ", percent: " + ((DocumentReaderIdentResult)element).percentValue);
